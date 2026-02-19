@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Tebiki Feedback Hub</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap');
+    :root {
+      --primary: #144285; --primary-light: #2563eb; --accent: #B5175A;
+      --text: #1f2937; --text-muted: #6b7280; --bg: #F2F2EE;
+      --card-bg: rgba(255, 255, 255, 0.95); --border: #e5e7eb;
+      --success: #10b981; --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); background-image: radial-gradient(at 0% 0%, rgba(20, 66, 133, 0.05) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(181, 23, 90, 0.05) 0px, transparent 50%);
+      color: var(--text); font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 24px;
+    }
+    .container { background: var(--card-bg); width: 100%; max-width: 680px; padding: 48px; border-radius: 24px; box-shadow: var(--shadow); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.3); }
+    header { margin-bottom: 40px; text-align: center; }
+    .logo-badge { display: inline-block; padding: 6px 12px; background: rgba(20, 66, 133, 0.1); color: var(--primary); border-radius: 100px; font-size: 0.75rem; font-weight: 700; margin-bottom: 16px; }
+    h1 { font-size: 2rem; font-weight: 700; color: var(--primary); }
+    .form-group { margin-bottom: 24px; }
+    label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; }
+    input, select, textarea { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 0.95rem; outline: none; }
+    .url-row { display: flex; gap: 12px; }
+    .video-title-box { margin-top: 10px; padding: 10px 16px; background: rgba(20, 66, 133, 0.03); border-radius: 8px; font-size: 0.9rem; border-left: 4px solid var(--primary); display: none; }
+    .submit-btn { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container" id="formContainer">
+    <header>
+      <div class="logo-badge">Feedback Hub</div>
+      <h1>Tebiki Feedback Hub</h1>
+      <p style="color:var(--text-muted)">GitHub Pages 公開版</p>
+    </header>
+    <form id="feedbackForm">
+      <div class="form-group">
+        <label>動画URL <span style="color:var(--accent)">*</span></label>
+        <div class="url-row"><input type="text" id="videoUrl" placeholder="URLをペーストしてください" required></div>
+        <div id="videoTitleBox" class="video-title-box"></div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div class="form-group">
+          <label>指摘時間</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="number" id="timeMin" value="0">分<input type="number" id="timeSec" value="0">秒
+          </div>
+        </div>
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <select id="category" required>
+            <option value="" disabled selected>選択...</option>
+            <option value="内容不備">内容不備</option>
+            <option value="手順変更">手順変更</option>
+            <option value="質問">質問</option>
+            <option value="改善提案">改善提案</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>詳細内容 <span style="color:var(--accent)">*</span></label>
+        <textarea id="details" placeholder="具体的にご記入ください" required></textarea>
+      </div>
+      <div class="form-group">
+        <label>アカウント名 <span style="color:var(--accent)">*</span></label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="text" id="accountName" placeholder="shukai.kawaoka" required>
+          <div style="background:var(--bg); padding:12px; border-radius:12px; font-weight:600; color:var(--text-muted);">@tuzuki.com</div>
+        </div>
+      </div>
+      <button type="submit" class="submit-btn" id="submitBtn"><span id="btnLabel">報告を送信する</span></button>
+    </form>
+  </div>
+
+  <div class="container" id="successUi" style="display:none; text-align:center;">
+    <div style="font-size:4rem;">✅</div>
+    <h2>送信完了</h2>
+    <p>ご協力ありがとうございました。</p>
+    <button class="submit-btn" style="margin-top:20px;" onclick="location.reload()">新しい報告</button>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbz3E9rjIHOz53K65pssiq-pdeX92MLQ6fAMkxNhgRHOqV7v6i8EaMimzn9KL7ptbqWf/exec";
+
+    const videoInput = document.getElementById('videoUrl');
+    const titleBox = document.getElementById('videoTitleBox');
+
+    window.onload = () => {
+      const saved = localStorage.getItem('tebikiAccount');
+      if (saved) document.getElementById('accountName').value = saved;
+    };
+
+    videoInput.addEventListener('input', () => {
+      const val = videoInput.value.trim();
+      const match = val.match(/https:\/\/([\w.-]+\.tebiki\.jp)\/(?:videos|courses\/\d+\/play)\/(\d+)/);
+      if (match) {
+        const canonicalUrl = `https://${match[1]}/videos/${match[2]}`;
+        titleBox.innerText = "タイトル確認中...";
+        titleBox.style.display = "block";
+        fetch(`${GAS_URL}?action=getTitle&url=${encodeURIComponent(canonicalUrl)}`)
+          .then(r => r.json()).then(d => { titleBox.innerText = `タイトル: ${d.title}`; });
+      } else { titleBox.style.display = "none"; }
+    });
+
+    document.getElementById('feedbackForm').onsubmit = function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      document.getElementById('btnLabel').innerHTML = '<div class="spinner"></div>';
+      
+      const account = document.getElementById('accountName').value;
+      localStorage.setItem('tebikiAccount', account);
+
+      const data = {
+        videoUrl: videoInput.value,
+        timeMin: document.getElementById('timeMin').value,
+        timeSec: document.getElementById('timeSec').value,
+        category: document.getElementById('category').value,
+        details: document.getElementById('details').value,
+        accountName: account
+      };
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(data)
+      })
+      .then(r => r.json()).then(res => {
+        if (res.success) {
+          document.getElementById('formContainer').style.display = 'none';
+          document.getElementById('successUi').style.display = 'block';
+        } else { alert("エラー: " + res.error); btn.disabled = false; }
+      })
+      .catch(() => {
+        alert("送信に失敗しました。スプレッドシートにデータが届いていないか確認してください。");
+        btn.disabled = false;
+        document.getElementById('btnLabel').innerText = "報告を送信する";
+      });
+    };
+  </script>
+</body>
+</html>
